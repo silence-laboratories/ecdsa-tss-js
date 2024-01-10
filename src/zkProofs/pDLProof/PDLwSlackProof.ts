@@ -1,10 +1,10 @@
 import * as secp from "@noble/secp256k1";
-import * as utils from '../../utils';
-import { PDLwSlackWitness } from './PDLwSlackWitness';
-import { PDLwSlackStatement } from './PDLwSlackStatement';
+import * as utils from "../../utils";
+import { PDLwSlackWitness } from "./PDLwSlackWitness";
+import { PDLwSlackStatement } from "./PDLwSlackStatement";
 
 export class PDLwSlackProof {
-  static requiredFields = ['z', 'u1', 'u2', 'u3', 's1', 's2', 's3'];
+  static requiredFields = ["z", "u1", "u2", "u3", "s1", "s2", "s3"];
   static q = secp.CURVE.n;
 
   z: bigint;
@@ -15,7 +15,15 @@ export class PDLwSlackProof {
   s2: bigint;
   s3: bigint;
 
-  constructor(z: bigint, u1: secp.Point, u2: bigint, u3: bigint, s1: bigint, s2: bigint, s3: bigint) {
+  constructor(
+    z: bigint,
+    u1: secp.Point,
+    u2: bigint,
+    u3: bigint,
+    s1: bigint,
+    s2: bigint,
+    s3: bigint
+  ) {
     this.z = z;
     this.u1 = u1;
     this.u2 = u2;
@@ -25,7 +33,7 @@ export class PDLwSlackProof {
     this.s3 = s3;
   }
 
-  toObj() {
+  toObj(): IPDLwSlackProof {
     return {
       z: utils.bigintTob64(this.z),
       u1: utils.pointTob64(this.u1),
@@ -41,9 +49,9 @@ export class PDLwSlackProof {
     return JSON.stringify(this.toObj());
   }
 
-  static fromObj(message: any) {
+  static fromObj(message: IPDLwSlackProof) {
     if (!utils.checkOwnKeys(PDLwSlackProof.requiredFields, message)) {
-      throw new Error('PDLwSlackProof object invalid');
+      throw new Error("PDLwSlackProof object invalid");
     }
     const z = utils.b64ToBigint(message.z);
     const u1 = utils.b64ToPoint(message.u1);
@@ -55,7 +63,12 @@ export class PDLwSlackProof {
     return new PDLwSlackProof(z, u1, u2, u3, s1, s2, s3);
   }
 
-  static async prove(witness: PDLwSlackWitness, statement: PDLwSlackStatement, sid: string, pid: string) {
+  static async prove(
+    witness: PDLwSlackWitness,
+    statement: PDLwSlackStatement,
+    sid: string,
+    pid: string
+  ) {
     const q3 = PDLwSlackProof.q ** BigInt(3);
     const qNTilde = PDLwSlackProof.q * statement.nTilde;
     const q3NTilde = q3 * statement.nTilde;
@@ -65,13 +78,31 @@ export class PDLwSlackProof {
     const rho: bigint = utils.randBelow(qNTilde);
     const gamma: bigint = utils.randBelow(q3NTilde);
 
-    const z = commitment_unknown_order(statement.h1, statement.h2, statement.nTilde, witness.x, rho);
+    const z = commitment_unknown_order(
+      statement.h1,
+      statement.h2,
+      statement.nTilde,
+      witness.x,
+      rho
+    );
 
     const u1 = statement.G.multiply(utils.modPositive(alpha, PDLwSlackProof.q));
 
-    const u2 = commitment_unknown_order(statement.ek.n + BigInt(1), beta, statement.ek._n2, alpha, statement.ek.n);
+    const u2 = commitment_unknown_order(
+      statement.ek.n + BigInt(1),
+      beta,
+      statement.ek._n2,
+      alpha,
+      statement.ek.n
+    );
 
-    const u3 = commitment_unknown_order(statement.h1, statement.h2, statement.nTilde, alpha, gamma);
+    const u3 = commitment_unknown_order(
+      statement.h1,
+      statement.h2,
+      statement.nTilde,
+      alpha,
+      gamma
+    );
 
     const data = [];
     data.push(utils.pointToBytes(statement.G));
@@ -81,16 +112,23 @@ export class PDLwSlackProof {
     data.push(utils.pointToBytes(u1));
     data.push(utils.bigintToUint8Array(u2));
     data.push(utils.bigintToUint8Array(u3));
-    data.push(utils.stringToUint8Array(sid));
+    data.push(utils.hexToUint8Array(sid));
     data.push(utils.stringToUint8Array(pid));
 
     const concatData = utils.concatUint8Arrays(data);
 
     const h = await utils.sha256(concatData);
+
     const e = utils.Uint8ArraytoBigint(new Uint8Array(h));
 
     const s1 = e * witness.x + alpha;
-    const s2 = commitment_unknown_order(witness.r, beta, statement.ek.n, e, BigInt(1));
+    const s2 = commitment_unknown_order(
+      witness.r,
+      beta,
+      statement.ek.n,
+      e,
+      BigInt(1)
+    );
     const s3 = e * rho + gamma;
 
     return new PDLwSlackProof(z, u1, u2, u3, s1, s2, s3);
@@ -105,7 +143,7 @@ export class PDLwSlackProof {
     data.push(utils.pointToBytes(this.u1));
     data.push(utils.bigintToUint8Array(this.u2));
     data.push(utils.bigintToUint8Array(this.u3));
-    data.push(utils.stringToUint8Array(sid));
+    data.push(utils.hexToUint8Array(sid));
     data.push(utils.stringToUint8Array(pid));
 
     const concatData = utils.concatUint8Arrays(data);
@@ -113,7 +151,9 @@ export class PDLwSlackProof {
     const h = await utils.sha256(concatData);
     const e = utils.Uint8ArraytoBigint(new Uint8Array(h));
 
-    const gS1 = statement.G.multiply(utils.modPositive(this.s1, PDLwSlackProof.q));
+    const gS1 = statement.G.multiply(
+      utils.modPositive(this.s1, PDLwSlackProof.q)
+    );
     const eFeNeg = PDLwSlackProof.q - e;
     const yMinusE = statement.Q.multiply(eFeNeg);
     const u1Test = gS1.add(yMinusE);
@@ -123,18 +163,41 @@ export class PDLwSlackProof {
       this.s2,
       statement.ek._n2,
       this.s1,
-      statement.ek.n,
+      statement.ek.n
     );
-    const u2Test = commitment_unknown_order(u2TestTmp, statement.ciphertext, statement.ek._n2, BigInt(1), -e);
+    const u2Test = commitment_unknown_order(
+      u2TestTmp,
+      statement.ciphertext,
+      statement.ek._n2,
+      BigInt(1),
+      -e
+    );
 
-    const u3TestTmp = commitment_unknown_order(statement.h1, statement.h2, statement.nTilde, this.s1, this.s3);
-    const u3Test = commitment_unknown_order(u3TestTmp, this.z, statement.nTilde, BigInt(1), -e);
-
+    const u3TestTmp = commitment_unknown_order(
+      statement.h1,
+      statement.h2,
+      statement.nTilde,
+      this.s1,
+      this.s3
+    );
+    const u3Test = commitment_unknown_order(
+      u3TestTmp,
+      this.z,
+      statement.nTilde,
+      BigInt(1),
+      -e
+    );
     return this.u1.equals(u1Test) && this.u2 === u2Test && this.u3 === u3Test;
   }
 }
 
-function commitment_unknown_order(h1: bigint, h2: bigint, nTilde: bigint, x: bigint, r: bigint): bigint {
+function commitment_unknown_order(
+  h1: bigint,
+  h2: bigint,
+  nTilde: bigint,
+  x: bigint,
+  r: bigint
+): bigint {
   const h1X = utils.bigintModPow(h1, x, nTilde);
   let h2R: bigint;
   if (r < 0) {
@@ -144,4 +207,13 @@ function commitment_unknown_order(h1: bigint, h2: bigint, nTilde: bigint, x: big
     h2R = utils.bigintModPow(h2, r, nTilde);
   }
   return utils.modPositive(h1X * h2R, nTilde);
+}
+export interface IPDLwSlackProof {
+  z: string;
+  u1: string;
+  u2: string;
+  u3: string;
+  s1: string;
+  s2: string;
+  s3: string;
 }

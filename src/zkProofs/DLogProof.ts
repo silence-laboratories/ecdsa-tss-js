@@ -1,10 +1,10 @@
 import * as secp from "@noble/secp256k1";
-import * as utils from '../utils';
+import * as utils from "../utils";
 
 export default class DLogProof {
   static G = secp.Point.BASE;
   static q = secp.CURVE.n;
-  static requiredFields = ['t', 's'];
+  static requiredFields = ["t", "s"];
 
   t: secp.Point;
   s: bigint;
@@ -24,7 +24,7 @@ export default class DLogProof {
     points.forEach((point) => {
       xList.push(utils.bigintToUint8Array(point.x));
     });
-    xList.push(utils.stringToUint8Array(sid));
+    xList.push(utils.hexToUint8Array(sid));
     xList.push(utils.stringToUint8Array(pid));
     const xListConcat = utils.concatUint8Arrays(xList);
     return await this._hashList(xListConcat);
@@ -40,25 +40,26 @@ export default class DLogProof {
 
   async verify(y: secp.Point, sid: string, pid: string) {
     const c = await DLogProof._hashPoints([DLogProof.G, y, this.t], sid, pid);
+
     const lhs = DLogProof.G.multiply(this.s);
     const rhs = this.t.add(y.multiply(c));
     return lhs.equals(rhs);
   }
 
-  toObj() {
+  toObj(): IDLogProof {
     return {
       t: utils.pointTob64(this.t),
       s: utils.bigintTob64(this.s),
     };
   }
 
-  toStr() {
+  toStr(): string {
     return JSON.stringify(this.toObj());
   }
 
-  static fromObj(message: any) {
+  static fromObj(message: IDLogProof) {
     if (!utils.checkOwnKeys(DLogProof.requiredFields, message)) {
-      throw new Error('DLogProof object invalid');
+      throw new Error("DLogProof object invalid");
     }
     const t = utils.b64ToPoint(message.t);
     const s = utils.b64ToBigint(message.s);
@@ -69,4 +70,9 @@ export default class DLogProof {
     const message = JSON.parse(messageString);
     return DLogProof.fromObj(message);
   }
+}
+
+export interface IDLogProof {
+  t: string;
+  s: string;
 }

@@ -1,0 +1,33 @@
+image: node:latest
+
+
+stages:
+  - build
+  - deploy
+
+
+build:
+  stage: build
+  script:
+    - npm install
+    - npm run lint
+    # - npm run test
+  only:
+    - merge_requests
+
+deploy:
+  stage: deploy
+  script:
+    - echo "//${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}">.npmrc
+    - npm install
+    - npm run lint
+    # - npm run test
+    - npm publish
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - package.json
+        - package-lock.json
+        - tsconfig.json
+        - tsconfig-cjs.json
+        - src/**/*

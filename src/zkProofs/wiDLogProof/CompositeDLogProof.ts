@@ -1,11 +1,11 @@
-import * as utils from '../../utils';
-import { DLogStatement } from './DLogStatement';
+import * as utils from "../../utils";
+import { DLogStatement } from "./DLogStatement";
 
 export class CompositeDLogProof {
   static K = BigInt(128);
   static K_PRIME = BigInt(128);
   static SAMPLE_S = BigInt(256);
-  static requiredFields = ['x', 'y'];
+  static requiredFields = ["x", "y"];
 
   x: bigint;
   y: bigint;
@@ -15,8 +15,16 @@ export class CompositeDLogProof {
     this.y = y;
   }
 
-  static async prove(dLogStatement: DLogStatement, secret: bigint, sid: string, pid: string) {
-    const bits = CompositeDLogProof.K + CompositeDLogProof.K_PRIME + CompositeDLogProof.SAMPLE_S;
+  static async prove(
+    dLogStatement: DLogStatement,
+    secret: bigint,
+    sid: string,
+    pid: string
+  ) {
+    const bits =
+      CompositeDLogProof.K +
+      CompositeDLogProof.K_PRIME +
+      CompositeDLogProof.SAMPLE_S;
     const R = BigInt(2) ** bits;
 
     // // Generating random number less than R = 2**bits in cryptogrphically secure manner
@@ -34,8 +42,8 @@ export class CompositeDLogProof {
       utils.bigintToUint8Array(dLogStatement.g),
       utils.bigintToUint8Array(dLogStatement.N),
       utils.bigintToUint8Array(dLogStatement.ni),
-      utils.stringToUint8Array(sid),
-      utils.stringToUint8Array(pid)
+      utils.hexToUint8Array(sid),
+      utils.stringToUint8Array(pid),
     ];
     const concatData = utils.concatUint8Arrays(data);
     const h = await utils.sha256(concatData);
@@ -47,17 +55,19 @@ export class CompositeDLogProof {
   async verify(dLogStatement: DLogStatement, sid: string, pid: string) {
     if (!(dLogStatement.N > BigInt(2) ** CompositeDLogProof.K)) return false;
 
-    if (utils.bigintGcd(dLogStatement.g, dLogStatement.N) !== BigInt(1)) return false;
+    if (utils.bigintGcd(dLogStatement.g, dLogStatement.N) !== BigInt(1))
+      return false;
 
-    if (utils.bigintGcd(dLogStatement.ni, dLogStatement.N) !== BigInt(1)) return false;
+    if (utils.bigintGcd(dLogStatement.ni, dLogStatement.N) !== BigInt(1))
+      return false;
 
     const data = [
       utils.bigintToUint8Array(this.x),
       utils.bigintToUint8Array(dLogStatement.g),
       utils.bigintToUint8Array(dLogStatement.N),
       utils.bigintToUint8Array(dLogStatement.ni),
-      utils.stringToUint8Array(sid),
-      utils.stringToUint8Array(pid)
+      utils.hexToUint8Array(sid),
+      utils.stringToUint8Array(pid),
     ];
     const concatData = utils.concatUint8Arrays(data);
 
@@ -71,7 +81,7 @@ export class CompositeDLogProof {
     return this.x === gYNiE;
   }
 
-  toObj() {
+  toObj(): ICompositeDLogProof {
     return {
       x: utils.bigintTob64(this.x),
       y: utils.bigintTob64(this.y),
@@ -82,9 +92,9 @@ export class CompositeDLogProof {
     return JSON.stringify(this.toObj());
   }
 
-  static fromObj(message: any) {
+  static fromObj(message: ICompositeDLogProof) {
     if (!utils.checkOwnKeys(CompositeDLogProof.requiredFields, message)) {
-      throw new Error('CompositeDLogProof object invalid');
+      throw new Error("CompositeDLogProof object invalid");
     }
     const x = utils.b64ToBigint(message.x);
     const y = utils.b64ToBigint(message.y);
@@ -95,4 +105,9 @@ export class CompositeDLogProof {
     const message = JSON.parse(messageString);
     return CompositeDLogProof.fromObj(message);
   }
+}
+
+export interface ICompositeDLogProof {
+  x: string;
+  y: string;
 }

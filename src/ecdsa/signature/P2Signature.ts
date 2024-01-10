@@ -1,51 +1,98 @@
 import * as secp from "@noble/secp256k1";
 import * as utils from "../../utils";
 import DLogProof from "../../zkProofs/DLogProof";
-import {verifyCommitment} from "../../zkProofs/hashCommitment"
-import {IP2KeyShare, P2KeyShare} from "../P2KeyShare";
-import {SignMessage1} from "./SignMessage1";
-import {SignMessage2} from "./SignMessage2";
-import {SignMessage3} from "./SignMessage3";
-import {SignMessage4} from "./SignMessage4";
-import {SignMessage5} from "./SignMessage5";
-import {SignatureFailed} from "./SignatureFailed";
+import { verifyCommitment } from "../../zkProofs/hashCommitment";
+import { IP2KeyShare, P2KeyShare } from "../P2KeyShare";
+import { SignMessage1 } from "./SignMessage1";
+import { SignMessage2 } from "./SignMessage2";
+import { SignMessage3 } from "./SignMessage3";
+import { SignMessage4 } from "./SignMessage4";
+import { SignMessage5 } from "./SignMessage5";
+import { SignatureFailed } from "./SignatureFailed";
 import { PARTY_ID_1, PARTY_ID_2 } from "../common";
-
+import {
+	b64ToBigint,
+	b64ToUint8Array,
+	bigintTob64,
+	Uint8ArrayTob64,
+} from "../../utils";
 
 const G = secp.Point.BASE;
 const q = secp.CURVE.n;
 
 export interface IP2SignatureResult {
-	msg_to_send: string | null,
-	signature: string | null
+	msg_to_send: string | null;
+	signature: string | null;
 }
 
 enum Party2SignatureState {
-    COMPLETE = 0,
-    FAILED = -1,
-    PROCESS_SIGN_MSG_1 = 1,
-    PROCESS_SIGN_MSG_3 = 2,
-    PROCESS_SIGN_MSG_5 = 3,
+	COMPLETE = 0,
+	FAILED = -1,
+	PROCESS_SIGN_MSG_1 = 1,
+	PROCESS_SIGN_MSG_3 = 2,
+	PROCESS_SIGN_MSG_5 = 3,
 }
 
 export class P2Signature {
-    sessionId: string;
+	static requiredFields = [
+		"sessionId",
+		"messageHash",
+		"p2KeyShare",
+		"k2",
+		"commitment",
+		"state",
+	];
+	sessionId: string;
 	messageHash: Uint8Array;
 	p2KeyShare: P2KeyShare;
-    k2: bigint | any;
+	k2: bigint | null;
 	commitment: string = "";
-    _state: Party2SignatureState;
+	_state: Party2SignatureState;
 
-    constructor(
+	constructor(
 		sessionId: string,
 		messageHash: Uint8Array,
 		p2KeyShareObj: IP2KeyShare,
-    ) {
-        this.sessionId = sessionId;
-        this.messageHash = messageHash;
-        this.p2KeyShare = P2KeyShare.fromObj(p2KeyShareObj);
-        this._state = Party2SignatureState.PROCESS_SIGN_MSG_1;
-    }
+	) {
+		this.sessionId = sessionId;
+		this.messageHash = messageHash;
+		this.p2KeyShare = P2KeyShare.fromObj(p2KeyShareObj);
+		this._state = Party2SignatureState.PROCESS_SIGN_MSG_1;
+		this.k2 = null;
+	}
+
+	toObj(): IP2Signature {
+		const d = {
+			sessionId: this.sessionId,
+			messageHash: Uint8ArrayTob64(this.messageHash),
+			p2KeyShare: this.p2KeyShare.toObj(),
+			k2: null,
+			commitment: null,
+			state: this._state,
+		};
+		if (this.k2) {
+			// @ts-ignore
+			d.k2 = bigintTob64(this.k2);
+		}
+		if (this.commitment) {
+			// @ts-ignore
+			d.commitment = this.commitment;
+		}
+		return d;
+	}
+
+	static fromObj(obj: IP2Signature) {
+		if (!utils.checkOwnKeys(P2Signature.requiredFields, obj)) {
+			throw new Error("Invalid obj");
+		}
+		const sessionId = obj.sessionId;
+		const messageHash = b64ToUint8Array(obj.messageHash);
+		const signObj = new P2Signature(sessionId, messageHash, obj.p2KeyShare);
+		signObj._state = obj.state;
+		if (obj.k2) signObj.k2 = b64ToBigint(obj.k2);
+		if (obj.commitment) signObj.commitment = obj.commitment;
+		return signObj;
+	}
 
 	isActive(): boolean {
 		const cond1 = this._state !== Party2SignatureState.FAILED;
@@ -53,62 +100,76 @@ export class P2Signature {
 		return cond1 && cond2;
 	}
 
-	async _processSignMessage1(signMessage1: SignMessage1): Promise<SignMessage2> {
+	async _processSignMessage1(
+		signMessage1: SignMessage1,
+	): Promise<SignMessage2> {
 		if (this._state !== Party2SignatureState.PROCESS_SIGN_MSG_1) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid state');
+			throw new SignatureFailed("Invalid state");
 		}
 		if (this.sessionId !== signMessage1.sessionId) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid sessionId');
+			throw new SignatureFailed("Invalid sessionId");
 		}
 		this.commitment = signMessage1.commitment;
 		this.k2 = utils.randomCurveScalar();
 		const r2 = G.multiply(this.k2);
-		const dLogProof = await DLogProof.prove(this.k2, r2, this.sessionId, PARTY_ID_2);
-		const signMessage2 = new SignMessage2(this.sessionId, r2, dLogProof)
+		const dLogProof = await DLogProof.prove(
+			this.k2,
+			r2,
+			this.sessionId,
+			PARTY_ID_2,
+		);
+		const signMessage2 = new SignMessage2(this.sessionId, r2, dLogProof);
 		this._state = Party2SignatureState.PROCESS_SIGN_MSG_3;
 		return signMessage2;
 	}
 
-	async _processSignMessage3(signMessage3: SignMessage3): Promise<SignMessage4> {
+	async _processSignMessage3(
+		signMessage3: SignMessage3,
+	): Promise<SignMessage4> {
 		if (this._state !== Party2SignatureState.PROCESS_SIGN_MSG_3) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid state');
+			throw new SignatureFailed("Invalid state");
 		}
 		if (this.sessionId !== signMessage3.sessionId) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid sessionId');
+			throw new SignatureFailed("Invalid sessionId");
 		}
 		const r1 = signMessage3.r1;
 		const dLogProof = signMessage3.dLogProof;
 		const con1 = await dLogProof.verify(r1, this.sessionId, PARTY_ID_1);
 		if (!con1) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid dLogProof');
+			throw new SignatureFailed("Invalid dLogProof");
 		}
 		const blindFactor = signMessage3.blindFactor;
 		const cond2 = await verifyCommitment(
-			this.commitment, r1, dLogProof, blindFactor, this.sessionId, PARTY_ID_1
+			this.commitment,
+			r1,
+			dLogProof,
+			blindFactor,
+			this.sessionId,
+			PARTY_ID_1,
 		);
 		if (!cond2) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid Commitment');
+			throw new SignatureFailed("Invalid Commitment");
 		}
 		const paillierPublicKey = this.p2KeyShare.paillierPublicKey;
 		const cKeyX1 = this.p2KeyShare.cKeyX1;
-		const rUpper = r1.multiply(this.k2);
+		const rUpper = r1.multiply(this.k2 as bigint);
 		const r = utils.modPositive(rUpper.x, q);
 		const m = utils.Uint8ArraytoBigint(this.messageHash);
 		const ro = utils.randBelow(q ** 2n);
-		const k2Inv = utils.bigintModInv(this.k2, q);
+		const k2Inv = utils.bigintModInv(this.k2 as bigint, q);
 		const c1 = paillierPublicKey.encrypt(
-			ro * q + utils.modPositive(k2Inv * m,  q)
+			ro * q + utils.modPositive(k2Inv * m, q),
 		);
 		const v = k2Inv * r * this.p2KeyShare.x2;
 		const c2 = paillierPublicKey.multiply(cKeyX1, v);
 		const c3 = paillierPublicKey.addition(c1, c2);
-		const signMessage4 = new SignMessage4(this.sessionId, c3)
+		const signMessage4 = new SignMessage4(this.sessionId, c3);
 		this._state = Party2SignatureState.PROCESS_SIGN_MSG_5;
 		return signMessage4;
 	}
@@ -116,21 +177,21 @@ export class P2Signature {
 	async _processSignMessage5(signMessage5: SignMessage5): Promise<string> {
 		if (this._state !== Party2SignatureState.PROCESS_SIGN_MSG_5) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid state');
+			throw new SignatureFailed("Invalid state");
 		}
 		if (this.sessionId !== signMessage5.sessionId) {
 			this._state = Party2SignatureState.FAILED;
-			throw new SignatureFailed('Invalid sessionId');
+			throw new SignatureFailed("Invalid sessionId");
 		}
 		const signature = signMessage5.signature;
 		try {
 			const signatureIsCorrect = await utils.verifySignature(
 				this.messageHash,
 				this.p2KeyShare.publicKey,
-				signature
+				signature,
 			);
 			if (!signatureIsCorrect) {
-				throw new SignatureFailed('Invalid signature');
+				throw new SignatureFailed("Invalid signature");
 			}
 		} catch (e) {
 			this._state = Party2SignatureState.FAILED;
@@ -142,13 +203,13 @@ export class P2Signature {
 
 	async processMessage(messageString: string): Promise<IP2SignatureResult> {
 		if (!this.isActive()) {
-			throw new SignatureFailed('Signature was already Completed or Failed');
+			throw new SignatureFailed("Signature was already Completed or Failed");
 		}
 
 		const messageObj = JSON.parse(messageString);
 		const messageSessionId = messageObj.session_id;
 		if (this.sessionId !== messageSessionId)
-			throw new Error('Invalid sessionId');
+			throw new Error("Invalid sessionId");
 
 		try {
 			if (this._state === Party2SignatureState.PROCESS_SIGN_MSG_1) {
@@ -156,24 +217,24 @@ export class P2Signature {
 				const signMessage2 = await this._processSignMessage1(signMessage1);
 				return {
 					msg_to_send: signMessage2.toStr(),
-					signature: null
-				}
+					signature: null,
+				};
 			}
 			if (this._state === Party2SignatureState.PROCESS_SIGN_MSG_3) {
 				const signMessage3 = SignMessage3.fromStr(messageString);
 				const signMessage4 = await this._processSignMessage3(signMessage3);
 				return {
 					msg_to_send: signMessage4.toStr(),
-					signature: null
-				}
+					signature: null,
+				};
 			}
 			if (this._state === Party2SignatureState.PROCESS_SIGN_MSG_5) {
 				const signMessage5 = SignMessage5.fromStr(messageString);
 				const signature = await this._processSignMessage5(signMessage5);
 				return {
 					msg_to_send: null,
-					signature
-				}
+					signature,
+				};
 			}
 		} catch (e) {
 			this._state = Party2SignatureState.FAILED;
@@ -181,7 +242,15 @@ export class P2Signature {
 		}
 
 		this._state = Party2SignatureState.FAILED;
-		throw new SignatureFailed('');
+		throw new SignatureFailed("");
 	}
+}
 
+export interface IP2Signature {
+	sessionId: string;
+	messageHash: string;
+	k2: string | null;
+	commitment: string | null;
+	p2KeyShare: IP2KeyShare;
+	state: Party2SignatureState;
 }
