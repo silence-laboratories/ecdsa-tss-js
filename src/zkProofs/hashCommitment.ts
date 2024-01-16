@@ -17,10 +17,8 @@ export async function createCommitment(
   });
   dataToHashList.push(utils.hexToUint8Array(sid));
   dataToHashList.push(utils.stringToUint8Array(pid));
-  console.log("Data to hash: ", dataToHashList);
   const dataToHash = utils.concatUint8Arrays(dataToHashList);
   const hash = await sha256(dataToHash);
-  console.log("Hash commitment: ", hash);
   return Uint8ArrayToHex(new Uint8Array(hash));
 }
 
