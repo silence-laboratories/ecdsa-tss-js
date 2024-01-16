@@ -1,6 +1,6 @@
 {
   "name": "@silencelaboratories/ecdsa-tss",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "ECDSA TSS(2,2) library",
   "main": "./lib/cjs/index.js",
   "module": "./lib/esm/index.js",
@@ -20,7 +20,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/com.silencelaboratories/ecdsa-tss-js.git"
+    "url": "git+https://github.com/silence-laboratories/ecdsa-tss-js.git"
   },
   "keywords": [
     "SilenceLaboratories",
@@ -30,9 +30,9 @@
   "author": "SilenceLaboratories",
   "license": "ISC",
   "bugs": {
-    "url": "https://gitlab.com/com.silencelaboratories/ecdsa-tss-js/issues"
+    "url": "https://github.com/silence-laboratories/ecdsa-tss-js/issues"
   },
-  "homepage": "https://gitlab.com/com.silencelaboratories/ecdsa-tss-js#readme",
+  "homepage": "https://github.com/silence-laboratories/ecdsa-tss-js#readme",
   "devDependencies": {
     "@types/jest": "^28.1.7",
     "jest": "^28.1.3",

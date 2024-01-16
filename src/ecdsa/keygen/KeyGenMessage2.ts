@@ -66,7 +66,6 @@ export class KeyGenMessage2 {
 
   static fromStr(messageString: string) {
     const message = JSON.parse(messageString);
-    console.log("Parsed: ", message);
     return KeyGenMessage2.fromObj(message);
   }
 }
