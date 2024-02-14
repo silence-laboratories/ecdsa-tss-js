@@ -28,7 +28,7 @@
     "ECDSA"
   ],
   "author": "SilenceLaboratories",
-  "license": "ISC",
+  "license": "SEE LICENSE IN LICENSE.md",
   "bugs": {
     "url": "https://github.com/silence-laboratories/ecdsa-tss-js/issues"
   },
