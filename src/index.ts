@@ -1,3 +1,6 @@
+// Copyright (c) Silence Laboratories Pte. Ltd.
+// This software is licensed under the Silence Laboratories License Agreement.
+
 // Exporting all the modules
 export { P1KeyGen, IP1KeyGenResult } from "./ecdsa/keygen/P1KeyGen";
 export { P2KeyGen, IP2KeyGenResult } from "./ecdsa/keygen/P2KeyGen";
