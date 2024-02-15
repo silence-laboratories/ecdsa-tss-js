@@ -1,3 +1,6 @@
+// Copyright (c) Silence Laboratories Pte. Ltd.
+// This software is licensed under the Silence Laboratories License Agreement.
+
 import { P1Signature, P2Signature, randBytes } from "ecdsa-tss";
 import { performKeygen } from "./utils";
 

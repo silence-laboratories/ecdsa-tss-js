@@ -1,3 +1,6 @@
+// Copyright (c) Silence Laboratories Pte. Ltd.
+// This software is licensed under the Silence Laboratories License Agreement.
+
 import * as utils from "../../utils";
 import * as secp from "@noble/secp256k1";
 import DLogProof, { IDLogProof } from "../../zkProofs/DLogProof";

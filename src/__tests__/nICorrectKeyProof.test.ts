@@ -1,3 +1,6 @@
+// Copyright (c) Silence Laboratories Pte. Ltd.
+// This software is licensed under the Silence Laboratories License Agreement.
+
 import * as paillier from "paillier-bigint";
 import NICorrectKeyProof from "../zkProofs/NICorrectKeyProof";
 

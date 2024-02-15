@@ -1,3 +1,6 @@
+// Copyright (c) Silence Laboratories Pte. Ltd.
+// This software is licensed under the Silence Laboratories License Agreement.
+
 import { arrayify, BytesLike } from "@ethersproject/bytes";
 import {
 	P1KeyGen,
