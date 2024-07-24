@@ -1,3 +1,6 @@
+// Copyright (c) Silence Laboratories Pte. Ltd.
+// This software is licensed under the Silence Laboratories License Agreement.
+
 import { KeyGenMessage1 } from "./KeyGenMessage1";
 import { KeyGenMessage2 } from "./KeyGenMessage2";
 import { KeyGenMessage3 } from "./KeyGenMessage3";
