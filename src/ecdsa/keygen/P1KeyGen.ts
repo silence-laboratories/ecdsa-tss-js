@@ -245,6 +245,15 @@ export class P1KeyGen {
 		this._state = P1KeyGenState.CREATE_KEY_GEN_MSG_1;
 	}
 
+
+	async importKey(keyPair1: KeyPair) {
+		this.paillierPrivateKey = keyPair1.privateKey;
+		this.paillierPublicKey = keyPair1.publicKey;
+		const keyPair2 = await paillier.generateRandomKeys(2048, true);
+		this.paillierKeyPairForProof = keyPair2;
+		this._state = P1KeyGenState.CREATE_KEY_GEN_MSG_1;
+	}
+
 	isActive(): boolean {
 		const cond1 = this._state !== P1KeyGenState.NOT_INITIALIZED;
 		const cond2 = this._state !== P1KeyGenState.FAILED;

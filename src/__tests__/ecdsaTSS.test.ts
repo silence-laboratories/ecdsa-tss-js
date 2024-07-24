@@ -10,6 +10,7 @@ import {
 	IP2KeyShare,
 	randBytes,
 } from "../index";
+import * as paillier from "paillier-bigint";
 
 jest.setTimeout(30000);
 
@@ -179,6 +180,50 @@ async function keyRefreshTest() {
 	return true;
 }
 
+async function keyImport() {
+	const sessionId = "some session id";
+	const x1 = await randBytes(32);
+	const p1KeyGen = new P1KeyGen(sessionId, x1);
+	const newKey = await paillier.generateRandomKeys(2048, true);
+	await p1KeyGen.importKey(newKey);
+	const p2KeyGen = new P2KeyGen(sessionId);
+
+	let p1Store = JSON.stringify(p1KeyGen.toObj());
+	let p2Store = JSON.stringify(p2KeyGen.toObj());
+
+	// Round 1
+	let p1 = P1KeyGen.fromObj(JSON.parse(p1Store));
+	const msg1 = await p1.processMessage(null);
+	p1Store = JSON.stringify(p1.toObj());
+
+	let p2 = P2KeyGen.fromObj(JSON.parse(p2Store));
+	const msg2 = await p2.processMessage(msg1.msg_to_send);
+	p2Store = JSON.stringify(p2.toObj());
+
+	// Round 2
+	p1 = P1KeyGen.fromObj(JSON.parse(p1Store));
+	const msg3 = await p1.processMessage(msg2.msg_to_send);
+	p1Store = JSON.stringify(p1.toObj());
+	const p1KeyShare = msg3.p1_key_share;
+
+	p2 = P2KeyGen.fromObj(JSON.parse(p2Store));
+	const msg4 = await p2.processMessage(msg3.msg_to_send);
+	const p2KeyShare = msg4.p2_key_share;
+
+	if (!p1KeyShare || !p2KeyShare) {
+		return null;
+	}
+
+	return { p1KeyShare, p2KeyShare };
+}
+
+async function keyImportTest() {
+	const keyImportResult = await keyImport();
+	if (!keyImportResult) return false;
+	const { p1KeyShare, p2KeyShare } = keyImportResult;
+	return p1KeyShare.public_key === p2KeyShare.public_key;
+}
+
 test("KeyGen", async () => {
 	const data = await keyGenTest();
 	expect(data).toBe(true);
@@ -193,3 +238,8 @@ test("KeyRefresh", async () => {
 	const data = await keyRefreshTest();
 	expect(data).toBe(true);
 });
+
+test("KeyImport", async () => {
+	const data = await keyImportTest();
+	expect(data).toBe(true);
+})
